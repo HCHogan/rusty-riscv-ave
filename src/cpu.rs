@@ -1,8 +1,12 @@
-use tracing::{debug, error, info, span, warn, Level};
+use crate::{
+    bus::Bus, 
+    exception::Exception, 
+    param::{DRAM_END, DRAM_BASE}
+};
+use tracing::{
+    debug, error, info, span, warn, Level
+};
 
-/// Our initial memory size
-// TODO: Make this configurable
-pub const DRAM_SIZE: usize = 1024 * 1024 * 1024;
 
 const RVABI: [&str; 32] = [
     "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2", 
@@ -17,19 +21,32 @@ pub struct Cpu {
     /// Program counter
     pc: u64,
     /// Our phisical memory
-    dram: Vec<u8>,
+    bus: Bus,
 }
 
 impl Cpu {
     /// Create a new CPU with the given code
     pub fn new(code: Vec<u8>) -> Self {
         let mut regs = [0 as u64; 32];
-        regs[2] = DRAM_SIZE as u64 - 1;
-        Self {
-            regs,
-            pc: 0,
-            dram: code,
-        }
+        // set stack pointer to the end of dram
+        regs[2] = DRAM_END;
+        let bus = Bus::new(code);
+        Self { regs, pc: DRAM_BASE, bus }
+    }
+
+    /// Load a value from a dram.
+    pub fn load(&mut self, addr: u64, size: u64) -> Result<u64, Exception> {
+        self.bus.load(addr, size)
+    }
+
+    /// Store a value to a dram.
+    pub fn store(&mut self, addr: u64, size: u64, value: u64) -> Result<(), Exception> {
+        self.bus.store(addr, size, value)
+    }
+
+    /// Get an instruction from the dram.
+    pub fn fetch(&mut self) -> Result<u64, Exception> {
+        self.bus.load(self.pc, 32)
     }
 
     /// Dump the registers in a readable format.
@@ -57,7 +74,7 @@ impl Cpu {
 
     // Return dram size
     pub fn dram_size(&self) -> usize {
-        self.dram.len()
+        self.bus.dram_size()
     }
 
     pub fn set_pc(&mut self, pc: u64) {
@@ -72,16 +89,6 @@ impl Cpu {
     // add pc by 4
     pub fn step(&mut self) {
         self.pc += 4;
-    }
-
-    /// Fetch the next instruction in little-endian format
-    /// A RISCV instruction is 32-bit long, So we read 4 bytes from the memory
-    pub fn fetch(&self) -> u32 {
-        let index = self.pc as usize;
-        self.dram[index] as u32
-            | ((self.dram[index + 1] as u32) << 8)
-            | ((self.dram[index + 2] as u32) << 16)
-            | ((self.dram[index + 3] as u32) << 24)
     }
 
     pub fn execute(&mut self, inst: u32) {

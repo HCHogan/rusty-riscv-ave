@@ -1,4 +1,8 @@
 pub mod cpu;
+pub mod bus;
+pub mod dram;
+pub mod exception;
+pub mod param;
 
 use std::{
     env,
@@ -30,7 +34,7 @@ fn main() -> io::Result<()> {
     let mut cpu = Cpu::new(code);
 
     while cpu.get_pc() < cpu.dram_size() as u64 {
-        let inst = cpu.fetch();
+        let inst = cpu.fetch().unwrap();
         cpu.execute(inst);
         cpu.step();
     }
