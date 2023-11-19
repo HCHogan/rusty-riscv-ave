@@ -1,6 +1,5 @@
-/// Memory has two function: store and load. Only store and load a 8-bit, 
-/// 16-bit, 32-bit and 64-bit are allowed. 
-
+/// Memory has two function: store and load. Only store and load a 8-bit,
+/// 16-bit, 32-bit and 64-bit are allowed.
 use crate::{
     exception::Exception,
     param::{DRAM_BASE, DRAM_SIZE},
@@ -27,7 +26,7 @@ impl Dram {
 
         let nbytes = size / 8;
         let index = (addr - DRAM_BASE) as usize;
-        let mut code: u64;
+        let mut code: u64 = 0;
         (0..nbytes).for_each(|i| {
             code |= (self.dram[index + i as usize] as u64) << (8 * i);
         });
