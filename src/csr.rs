@@ -89,10 +89,6 @@ pub struct Csr {
     csrs: [u64; NUM_CSRS],
 }
 
-// Register mideleg controls whether an interrupt is delegated to S-mode. 
-// If certain bit in mideleg is set, the corresponding field in sie become 
-// visible when a read or write operation is performed. The same rule applies 
-// to sip and sstatus.
 impl Csr {
     pub fn new() -> Csr {
         Self {
@@ -100,6 +96,10 @@ impl Csr {
         }
     }
 
+    // Register mideleg controls whether an interrupt is delegated to S-mode. 
+    // If certain bit in mideleg is set, the corresponding field in sie become 
+    // visible when a read or write operation is performed. The same rule applies 
+    // to sip and sstatus.
     pub fn load(&self, addr: usize) -> u64 {
         match addr {
             SIE => self.csrs[MIE] & self.csrs[MIDELEG],
@@ -107,6 +107,29 @@ impl Csr {
             SSTATUS => self.csrs[MSTATUS] & MASK_SSTATUS,
             _ => self.csrs[addr],
         }
+    }
+
+    /// Dump the registers in a readable format.
+    pub fn dump_csrs(&self) {
+        println!("{:-^80}", "control status registers");
+        let output = format!(
+            "{}\n{}\n",
+            format!(
+                "mstatus = {:<#18x}  mtvec = {:<#18x}  mepc = {:<#18x}  mcause = {:<#18x}",
+                self.load(MSTATUS),
+                self.load(MTVEC),
+                self.load(MEPC),
+                self.load(MCAUSE),
+            ),
+            format!(
+                "sstatus = {:<#18x}  stvec = {:<#18x}  sepc = {:<#18x}  scause = {:<#18x}",
+                self.load(SSTATUS),
+                self.load(STVEC),
+                self.load(SEPC),
+                self.load(SCAUSE),
+            ),
+        );
+        println!("{}", output);
     }
 
     pub fn store(&mut self, addr: usize, value: u64) {
