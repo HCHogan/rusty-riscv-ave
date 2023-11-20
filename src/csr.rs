@@ -104,6 +104,7 @@ impl Csr {
         match addr {
             SIE => self.csrs[MIE] & self.csrs[MIDELEG],
             SIP => self.csrs[MIP] & self.csrs[MIDELEG],
+            // Some wpri registers in status, so we need to mask them.
             SSTATUS => self.csrs[MSTATUS] & MASK_SSTATUS,
             _ => self.csrs[addr],
         }
@@ -143,9 +144,20 @@ impl Csr {
                     (self.csrs[MIE] & !self.csrs[MIDELEG]) | (value & self.csrs[MIDELEG])
             }
             SSTATUS => {
+                // Same as above.
                 self.csrs[MSTATUS] = (self.csrs[MSTATUS] & !MASK_SSTATUS) | (value & MASK_SSTATUS)
             }
             _ => self.csrs[addr] = value,
         }
+    }
+
+    /// Returns whether this exception cause is delegated from M-mode to S-mode.
+    pub fn is_medelegated(&self, cause: u64) -> bool {
+        (self.csrs[MEDELEG].wrapping_shr(cause as u32) & 1) == 1
+    }
+    
+    /// Returns whether this interrupt cause is delegated from M-mode to S-mode.
+    pub fn is_midelegated(&self, cause: u64) -> bool {
+        (self.csrs[MIDELEG].wrapping_shr(cause as u32) & 1) == 1
     }
 }

@@ -42,7 +42,11 @@ impl fmt::Display for Exception {
 }
 
 
+/// We implement the value function to return the trap value and the code function 
+/// to return the exception code. We have also provided a function is_fatal, 
+/// which determines whether the exception is fatal.
 impl Exception {
+    /// Return the value of the exception.
     pub fn value(self) -> u64 {
         match self {
             InstructionAddrMisaligned(addr) => addr,
@@ -62,6 +66,7 @@ impl Exception {
         }
     }
 
+    /// Return the code of the exception.
     pub fn code(self) -> u64 {
         match self {
             InstructionAddrMisaligned(_) => 0,
@@ -81,6 +86,7 @@ impl Exception {
         }
     }
 
+    /// Return whether the exception is fatal.
     pub fn is_fatal(self) -> bool {
         match self {
             InstructionAddrMisaligned(_)

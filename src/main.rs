@@ -35,19 +35,28 @@ fn main() -> io::Result<()> {
     let mut cpu = Cpu::new(code);
 
     loop {
+        // fetch
         let inst = match cpu.fetch() {
             Ok(inst) => inst,
             Err(e) => {
-                error!("fetch instruction failed: {:?}", e);
-                break;
+                cpu.handle_exception(e);
+                if e.is_fatal() {
+                    error!("{}", e);
+                    break;
+                }
+                continue;
             }
         };
 
+        // execute
         match cpu.execute(inst) {
             Ok(new_pc) => cpu.set_pc(new_pc),
             Err(e) => {
-                error!("execute instruction failed: {:?}", e);
-                break;
+                cpu.handle_exception(e);
+                if e.is_fatal() {
+                    error!("{}", e);
+                    break;
+                }
             }
         };
     }
