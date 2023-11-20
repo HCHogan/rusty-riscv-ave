@@ -4,6 +4,9 @@ pub mod dram;
 pub mod exception;
 pub mod param;
 pub mod csr;
+pub mod uart;
+pub mod clint;
+pub mod plic;
 
 use cpu::Cpu;
 use std::{

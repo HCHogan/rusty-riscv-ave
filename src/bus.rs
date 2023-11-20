@@ -2,10 +2,21 @@
 /// Bus allocates different address for differet devices.
 /// By sending instruction through bus, CPU can operate the IO devices indirectly.
 /// Bus also provides two function: store and load.
-use crate::{dram::Dram, exception::Exception, param::{DRAM_BASE, DRAM_END}};
+use crate::{
+    clint::Clint,
+    dram::Dram,
+    exception::Exception,
+    param::{DRAM_BASE, DRAM_END},
+    plic::Plic,
+    uart::Uart,
+    param::*,
+};
 
 pub struct Bus {
     dram: Dram,
+    clint: Clint,
+    plic: Plic,
+    uart: Uart,
 }
 
 impl Bus {
@@ -13,13 +24,19 @@ impl Bus {
     pub fn new(code: Vec<u8>) -> Bus {
         Self {
             dram: Dram::new(code),
+            clint: Clint::new(),
+            plic: Plic::new(),
+            uart: Uart::new(),
         }
     }
 
     /// Checks the address and call load on dram.
     pub fn load(&mut self, addr: u64, size: u64) -> Result<u64, Exception> {
         match addr {
+            CLINT_BASE..=CLINT_END => self.clint.load(addr, size),
+            PLIC_BASE..=PLIC_END => self.plic.load(addr, size),
             DRAM_BASE..=DRAM_END => self.dram.load(addr, size),
+            UART_BASE..=UART_END => self.uart.load(addr, size),
             _ => Err(Exception::LoadAccessFault(addr)),
         }
     }
@@ -27,7 +44,10 @@ impl Bus {
     /// Checks the address and call store on dram.
     pub fn store(&mut self, addr: u64, size: u64, value: u64) -> Result<(), Exception> {
         match addr {
+            CLINT_BASE..=CLINT_END => self.clint.store(addr, size, value),
+            PLIC_BASE..=PLIC_END => self.plic.store(addr, size, value),
             DRAM_BASE..=DRAM_END => self.dram.store(addr, size, value),
+            UART_BASE..=UART_END => self.uart.store(addr, size, value),
             _ => Err(Exception::StoreAMOAccessFault(addr)),
         }
     }
