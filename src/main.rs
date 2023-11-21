@@ -26,23 +26,25 @@ fn main() -> io::Result<()> {
 
     let args: Vec<String> = env::args().collect();
 
-    if args.len() != 2 {
+    if args.len() != 3 {
         println!(
             "Usage:\n\
-            - cargo run <filename>"
+            - cargo run <filename> <disk_image>"
         );
         return Ok(());
     }
 
     let mut file = File::open(&args[1])?;
-    let mut code = Vec::new();
+    let mut binary = Vec::new();
+    file.read_to_end(&mut binary)?;
 
-    let mut file = File::open(&args[2])?;
     let mut disk_image = Vec::new();
-    file.read_to_end(&mut code)?;
-    file.read_to_end(&mut disk_image)?;
+    if args.len() == 3 {
+        let mut file = File::open(&args[2])?;
+        file.read_to_end(&mut disk_image)?;
+    }
 
-    let mut cpu = Cpu::new(code, disk_image);
+    let mut cpu = Cpu::new(binary, disk_image);
 
     loop {
         // fetch
@@ -77,6 +79,8 @@ fn main() -> io::Result<()> {
     }
 
     cpu.dump_registers();
+    cpu.dump_csrs();
+    cpu.dump_pc();
 
     Ok(())
 }

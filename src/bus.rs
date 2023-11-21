@@ -10,7 +10,8 @@ use crate::{
     plic::Plic,
     uart::Uart,
     param::*,
-    virtqueue::VirtioBlock,
+    virtio::*,
+    virtqueue::*,
 };
 
 pub struct Bus {
@@ -40,6 +41,7 @@ impl Bus {
             PLIC_BASE..=PLIC_END => self.plic.load(addr, size),
             DRAM_BASE..=DRAM_END => self.dram.load(addr, size),
             UART_BASE..=UART_END => self.uart.load(addr, size),
+            VIRTIO_BASE..=VIRTIO_END => self.virtio_blk.load(addr, size),
             _ => Err(Exception::LoadAccessFault(addr)),
         }
     }
@@ -51,6 +53,7 @@ impl Bus {
             PLIC_BASE..=PLIC_END => self.plic.store(addr, size, value),
             DRAM_BASE..=DRAM_END => self.dram.store(addr, size, value),
             UART_BASE..=UART_END => self.uart.store(addr, size, value),
+            VIRTIO_BASE..=VIRTIO_END => self.virtio_blk.store(addr, size, value),
             _ => Err(Exception::StoreAMOAccessFault(addr)),
         }
     }

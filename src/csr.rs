@@ -85,6 +85,9 @@ pub const MASK_MEIP: u64 = 1 << 11;
 
 const NUM_CSRS: usize = 4096;
 
+// SATP field
+pub const MASK_PPN:  u64 = (1 << 44) - 1;
+
 pub struct Csr {
     csrs: [u64; NUM_CSRS],
 }
