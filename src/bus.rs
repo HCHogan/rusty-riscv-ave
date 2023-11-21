@@ -10,23 +10,26 @@ use crate::{
     plic::Plic,
     uart::Uart,
     param::*,
+    virtqueue::VirtioBlock,
 };
 
 pub struct Bus {
     dram: Dram,
     clint: Clint,
     plic: Plic,
-    uart: Uart,
+    pub uart: Uart,
+    pub virtio_blk: VirtioBlock,
 }
 
 impl Bus {
     /// Create a bus from given code.
-    pub fn new(code: Vec<u8>) -> Bus {
+    pub fn new(code: Vec<u8>, disk_image: Vec<u8>) -> Bus {
         Self {
             dram: Dram::new(code),
             clint: Clint::new(),
             plic: Plic::new(),
             uart: Uart::new(),
+            virtio_blk: VirtioBlock::new(disk_image),
         }
     }
 

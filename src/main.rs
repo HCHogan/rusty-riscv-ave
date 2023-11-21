@@ -8,6 +8,8 @@ pub mod uart;
 pub mod clint;
 pub mod plic;
 pub mod interrupt;
+pub mod virtio;
+pub mod virtqueue;
 
 use cpu::Cpu;
 use std::{
@@ -34,9 +36,13 @@ fn main() -> io::Result<()> {
 
     let mut file = File::open(&args[1])?;
     let mut code = Vec::new();
-    file.read_to_end(&mut code)?;
 
-    let mut cpu = Cpu::new(code);
+    let mut file = File::open(&args[2])?;
+    let mut disk_image = Vec::new();
+    file.read_to_end(&mut code)?;
+    file.read_to_end(&mut disk_image)?;
+
+    let mut cpu = Cpu::new(code, disk_image);
 
     loop {
         // fetch
@@ -65,7 +71,7 @@ fn main() -> io::Result<()> {
         };
 
         match cpu.check_pending_interrupt() {
-            Some(interrupt) => cpu.handle_exception(interrupt),
+            Some(interrupt) => cpu.handle_interrupt(interrupt),
             None => (),
         }
     }
