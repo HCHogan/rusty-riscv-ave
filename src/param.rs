@@ -48,3 +48,5 @@ pub const UART_LSR: u64 = 5;
 pub const MASK_UART_LSR_RX: u8 = 1;
 // The transmitter (TX) bit MASK.
 pub const MASK_UART_LSR_TX: u8 = 1 << 5;
+
+pub const MASK_INTERRUPT_BIT: u64 = 1 << 63;

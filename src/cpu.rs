@@ -2,7 +2,7 @@ use crate::{
     bus::Bus, 
     exception::Exception, 
     csr::*,
-    param::{DRAM_END, DRAM_BASE}
+    param::{DRAM_END, DRAM_BASE}, interrupt::Interrupt
 };
 use tracing::{
     debug, error, info, span, warn, Level
@@ -637,6 +637,114 @@ impl Cpu {
         // TODO: Why I can't use mode.into() here?
         status = (status & !MASK_PP) | (mode.as_u64() << pp_i);
         self.csr.store(STATUS, status);
+    }
+
+
+    /// The procedure of handling interrupt is similar to that of handling exception.
+    /// For convenience, I summarize the process as follows:
+    /// 1. update hart's privilege mode (M or S according to current mode and exception setting).
+    /// 2. save current pc in epc (sepc in S-mode, mepc in M-mode)
+    /// 3. set pc properly according to the MODE field of trap vector (stvec in S-mode, mtvec in M-mode)
+    /// 4. set cause register with exception code (scause in S-mode, mcause in M-mode)
+    /// 5. set xPIE to xIE (SPIE in S-mode, MPIE in M-mode)
+    /// 6. clear up xIE (SIE in S-mode, MIE in M-mode)
+    /// 7. set xPP to previous mode.
+    /// There are two different points compared with exception. First, we omit the set up of trap value. 
+    /// Second, we have to set up the pc according to the MODE field of trap vector.
+    ///
+    /// Read the Section 3.1.7 in RISC-V Privileged for more details.
+    pub fn handle_interrupt(&mut self, interrupt: Interrupt) {
+        // similar to handle exception
+        let pc = self.pc;
+        let mode = self.mode;
+        let cause = interrupt.code();
+        // although cause contains a interrupt bit. Shift the cause to make it out.
+        let trap_in_s_mode = mode <= Mode::Supervisor && self.csr.is_midelegated(cause);
+        // 1.
+        let (STATUS, TVEC, CAUSE, TVAL, EPC, MASK_PIE, pie_i, MASK_IE, ie_i, MASK_PP, pp_i) 
+            = if trap_in_s_mode {
+                self.mode = Mode::Supervisor;
+                (SSTATUS, STVEC, SCAUSE, STVAL, SEPC, MASK_SPIE, 5, MASK_SIE, 1, MASK_SPP, 8)
+            } else {
+                self.mode = Mode::Machine;
+                (MSTATUS, MTVEC, MCAUSE, MTVAL, MEPC, MASK_MPIE, 7, MASK_MIE, 3, MASK_MPP, 11)
+            };
+        // 3.1.7 & 4.1.2
+        // When MODE=Direct, all traps into machine mode cause the pc to be set to the address in the BASE field. 
+        // When MODE=Vectored, all synchronous exceptions into machine mode cause the pc to be set to the address 
+        // in the BASE field, whereas interrupts cause the pc to be set to the address in the BASE field plus four 
+        // times the interrupt cause number.
+        // 2.
+        self.csr.store(EPC, pc);
+        // 3.
+        let tvec = self.csr.load(TVEC);
+        let tvec_mode = tvec & 0b11;
+        let tvec_base = tvec & !0b11;
+        match tvec_mode {
+            0 => self.pc = tvec_base,
+            1 => self.pc = tvec_base + cause << 2,
+            _ => unreachable!(),
+        };
+        // 4.
+        self.csr.store(CAUSE, cause);
+        self.csr.store(TVAL, 0);
+        // 5.
+        let mut status = self.csr.load(STATUS);
+        let ie = (status & MASK_IE) >> ie_i;
+        // set SPIE = SIE or MPIE = MIE
+        status = (status & !MASK_PIE) | (ie << pie_i);
+        // set SIE = 0 or MIE = 0
+        status &= !MASK_IE;
+        // set SPP / MPP to previous mode.
+        status = (status & !MASK_PP) | (mode.as_u64() << pp_i);
+        self.csr.store(STATUS, status);
+    }
+
+    pub fn check_pending_interrupt(&mut self) -> Option<Interrupt> {
+        use Interrupt::*;
+        use Mode::*;
+        if (self.mode == Machine) && (self.csr.load(MSTATUS) & MASK_MIE) == 0 {
+            return None;
+        }
+        if (self.mode == Supervisor) && (self.csr.load(SSTATUS) & MASK_SIE) == 0 {
+            return None;
+        }
+        
+        // In fact, we should using priority to decide which interrupt should be handled first.
+        if self.bus.uart.is_interrupting() {
+            self.bus.store(PLIC_SCLAIM, 32, UART_IRQ).unwrap();
+            self.csr.store(MIP, self.csr.load(MIP) | MASK_SEIP); 
+        } 
+        // 3.1.9 & 4.1.3
+        // Multiple simultaneous interrupts destined for M-mode are handled in the following decreasing
+        // priority order: MEI, MSI, MTI, SEI, SSI, STI.
+        let pending = self.csr.load(MIE) & self.csr.load(MIP);
+
+        if (pending & MASK_MEIP) != 0 {
+            self.csr.store(MIP, self.csr.load(MIP) & !MASK_MEIP);
+            return Some(MachineExternalInterrupt);
+        }
+        if (pending & MASK_MSIP) != 0 {
+            self.csr.store(MIP, self.csr.load(MIP) & !MASK_MSIP);
+            return Some(MachineSoftwareInterrupt);
+        }
+        if (pending & MASK_MTIP) != 0 {
+            self.csr.store(MIP, self.csr.load(MIP) & !MASK_MTIP);
+            return Some(MachineTimerInterrupt);
+        }
+        if (pending & MASK_SEIP) != 0 {
+            self.csr.store(MIP, self.csr.load(MIP) & !MASK_SEIP);
+            return Some(SupervisorExternalInterrupt);
+        }
+        if (pending & MASK_SSIP) != 0 {
+            self.csr.store(MIP, self.csr.load(MIP) & !MASK_SSIP);
+            return Some(SupervisorSoftwareInterrupt);
+        }
+        if (pending & MASK_STIP) != 0 {
+            self.csr.store(MIP, self.csr.load(MIP) & !MASK_STIP);
+            return Some(SupervisorTimerInterrupt);
+        }
+        return None;
     }
 
     pub fn reg(&self, r: &str) -> u64 {

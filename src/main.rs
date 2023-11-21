@@ -7,6 +7,7 @@ pub mod csr;
 pub mod uart;
 pub mod clint;
 pub mod plic;
+pub mod interrupt;
 
 use cpu::Cpu;
 use std::{
@@ -62,6 +63,11 @@ fn main() -> io::Result<()> {
                 }
             }
         };
+
+        match cpu.check_pending_interrupt() {
+            Some(interrupt) => cpu.handle_exception(interrupt),
+            None => (),
+        }
     }
 
     cpu.dump_registers();
