@@ -60,6 +60,8 @@ fn main() -> io::Result<()> {
             }
         };
 
+        // eprintln!("inst: {:x}, pc: {:x}", inst, cpu.pc);
+
         // execute
         match cpu.execute(inst) {
             Ok(new_pc) => cpu.set_pc(new_pc),
