@@ -2,8 +2,6 @@
 
 inspired by rvemu and Rare.
 
-Just for my personal study.
-
 ## TODOS
 My implementation works fine in previous 9 steps, but failed to boot xv6's kernel in the last lab, 
 so I use the cpu.rs from rare, it just works.
@@ -30,7 +28,7 @@ Then do
 make
 llvm-objcopy --strip-all -O binary kernel/kernel ./kernel.bin
 ```
-
+Then go back to the emulator directory, run
 ```bash
 cargo run --release <path-to-kernel-binary> <path-to-file-system>
 ```
