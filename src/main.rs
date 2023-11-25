@@ -17,7 +17,7 @@ use std::{
     fs::File,
     io::{self, Read},
 };
-use tracing::{debug, error, info, span, warn, Level};
+use tracing::{error, warn};
 use tracing_subscriber;
 
 #[tracing::instrument]

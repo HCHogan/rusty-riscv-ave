@@ -5,7 +5,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc, Condvar, Mutex,
     },
-    thread::{self, Thread}, 
+    thread::{self}, 
 };
 
 pub struct Uart {
@@ -77,7 +77,7 @@ impl Uart {
         if size != 8 {
             return Err(Exception::StoreAMOAccessFault(addr));
         }
-        let (uart, cvar) = &*self.uart;
+        let (uart, _cvar) = &*self.uart;
         let mut array = uart.lock().unwrap();
         let index = addr - UART_BASE;
         match index {

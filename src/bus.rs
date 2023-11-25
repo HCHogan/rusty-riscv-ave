@@ -11,7 +11,6 @@ use crate::{
     uart::Uart,
     param::*,
     virtio::*,
-    virtqueue::*,
 };
 
 pub struct Bus {
